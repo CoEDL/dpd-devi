@@ -1,0 +1,3 @@
+﻿illustration,word,word_gloss,sentence,sentence_gloss,word_audio_file,word_start_sec,word_end_sec,sentence_audio_file,sentence_start_sec,sentence_end_sec
+car.png,Auto,car,Das ist ein *Auto*,This is a car,car-rooster.wav,0.35,1.05,car-rooster.wav,1.88,3.07
+rooster.png,Hahn,rooster,Das ist ein *Hahn*,This is a rooster,car-rooster.wav,3.96,4.82,car-rooster.wav,5.5,6.64

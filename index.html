@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Digital Picture Dictionary Developer Interface</title>
+
+	<style type="text/css">
+		body {
+			text-align: center;
+		}
+
+		#container {
+			max-width: 800px;
+			margin: auto;
+			text-align: left;
+		}
+
+		img.illustration {
+			max-height: 250px;
+			max-width: 250px;
+			border: 1px solid black;
+			float: right;
+		}
+
+		div.image {
+			width: 250px;
+			float: left;
+		}
+
+		div.data {
+			height: 250px;
+			margin-left: 260px;
+			padding-top: 2.5px;
+			margin-top: 10px;
+		}
+
+		a.play {
+			color: blue;
+			text-decoration: none;
+		}
+
+		a.play:hover {
+			cursor: pointer;
+		}
+	</style>
+
+</head>
+<body>
+
+<div id="container">
+
+<h1>Digital Picture Dictionary Developer Interface</h1>
+
+<p>
+	Load assets:
+	<ul>
+		<li /> Load audio files: <input id="audio_files" type="file" accept="audio/*" multiple />
+		<li /> Load image files: <input id="image_files" type="file" accept="image/*" multiple />
+	</ul>
+</p>
+<p>
+	Load text and associations:
+	<ul>
+		<li>
+			<input id="data_file" type="file" accept="text/csv" style="display:none">
+			<div style="border: 1px solid grey; width:200px; text-align: center;">
+				<label for="data_file">Click to (re)load CSV file</label>			
+			</div>
+		</li>
+	</ul>
+</p>
+
+<div id="preview">
+</div>
+
+</div>
+
+<script src="http://code.jquery.com/jquery-3.3.1.slim.js" integrity="sha256-fNXJFIlca05BIO2Y5zh1xrShK3ME+/lYZ0j+ChxX2DA=" crossorigin="anonymous"></script>
+<script type="text/javascript" src="js/jquery.csv.js"></script>
+
+<script type="text/javascript">
+pd_data = {}
+
+assets = {
+	"images": {},
+	"audio": {}
+}
+
+play_audio = function(audio_file, start_sec, end_sec) {
+
+	fragment = new Audio(assets.audio[audio_file] + "#t=" + start_sec + "," + end_sec)
+	fragment.play()
+
+}
+
+audio_files.onchange = function(){
+	for (file of this.files) {
+		assets.audio[file.name] = URL.createObjectURL(file); 
+	}
+};
+
+image_files.onchange = function(){
+	for (file of this.files) {
+		assets.images[file.name] = URL.createObjectURL(file); 
+	}
+};
+
+data_file.onchange = function() {
+
+	const reader = new FileReader();
+
+	reader.readAsText(this.files[0]);
+
+	reader.onload = function fileReadCompleted() {
+    	// when the reader is done, the content is in reader.result.
+    	var csv = event.target.result;
+    	var data = $.csv.toObjects(csv);
+
+    	console.log(data)
+
+    	pd_data = data
+
+    	data_file.value = null
+
+    	for (row of data) {
+
+    		console.log(assets.images[row.illustration])
+
+    		$("#preview").append(`
+    			<div class="row">
+    				<div class="image">
+    					<img class="illustration" src="${ assets.images[row.illustration] }">
+    				</div>
+    				<div class="data">
+	    				<p>Illustration: ${row.illustration}</p>
+	    				<p>Word: ${row.word}</p>
+	    				<p>Word gloss: ${row.word_gloss}</p>
+	    				<p>Sentence: ${ row.sentence.replace(/\*(.+)\*/, '<b>$1</b>') }</p>
+	    				<p>Sentence gloss: ${ row.sentence_gloss }</p>
+	    				<p>
+	    					Word audio: ${ row.word_audio_file } (${ row.word_start_sec }-${ row.word_end_sec })
+	    					<a class="play" onclick="play_audio('${ row.word_audio_file }', ${ row.word_start_sec }, ${ row.word_end_sec })">►</a>
+    					</p>
+	    				<p>
+	    					Sentence audio: ${ row.sentence_audio_file } (${ row.sentence_start_sec }-${ row.sentence_end_sec })
+	    					<a class="play" onclick="play_audio('${ row.sentence_audio_file }', ${ row.sentence_start_sec }, ${ row.sentence_end_sec })">►</a>
+    					</p>
+    				</div>
+    			</div>
+			`)
+
+    	}
+  	};
+
+}
+
+</script>
+
+</body>
+</html>
