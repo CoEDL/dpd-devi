@@ -9,6 +9,7 @@ This repository contains a tool to quickly view picture dictionary texts and ass
 ## Sample data
 
 Included in this repository is sample data (see the `sample-data` directory) or download [sample-data.zip](https://coedl.github.io/dpd-devi/docs/sample-data.zip). The sample data consists of a CSV file `sample-pd.csv` and two directories which contain image and audio assets, `illustrations` and `audio`.
+Included illustrations retrieved from [Open Clipart Vectors](https://pixabay.com/users/openclipart-vectors-30363/).
 
 ## Interface URL
 
