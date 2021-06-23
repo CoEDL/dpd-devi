@@ -34,22 +34,68 @@
 			margin-top: 10px;
 		}
 
-		a.play {
+		a.play, a.illus_change {
 			color: blue;
 			text-decoration: none;
 		}
 
-		a.play:hover {
+		a.play:hover, a.illus_change:hover {
 			cursor: pointer;
 		}
+
+		div#img_browser {
+			/*border: 1px solid black;*/
+			background: #ecf0f1;
+			position: fixed;
+			z-index: 1;
+			width: 700px;
+			padding-left: 5px;
+			padding-right: 5px;
+			display: none;
+			height: 100%;
+			top: 50%;
+  			left: 50%;
+  			transform: translate(-50%, -50%);
+		}
+
+		div#img_grid {
+			height: 100%;
+			overflow-y: auto;
+		}
+
+		div#img_browser img {
+			max-width: 200px;
+			max-height: 200px;
+		}
+
+		div#img_grid .img_item {
+			font-size: small;
+			float:left;
+			border:1px solid black;
+			padding-left: 5px;
+			padding-right: 5px;
+			margin-right: 5px;
+			margin-top: 5px;
+		}
+
+		.img_select {
+			background: #007bff;
+		}
+
 	</style>
 
 </head>
 <body>
 
+<div id="img_browser" data-rowindex="null">
+<p style="text-align: right;"><a onclick='$("#img_browser").hide()' class="illus_change">Close image browser</a></p>
+<p style="text-align: left">Double click image to select</p>
+<div id="img_grid"></div>
+</div>
+
 <div id="container">
 
-<h1>Digital Picture Dictionary Developer Interface</h1>
+<h1 id="app_title">Digital Picture Dictionary Developer Interface</h1>
 
 <p>
 	Load assets:
@@ -63,9 +109,12 @@
 	<ul>
 		<li>
 			<input id="data_file" type="file" accept="text/csv" style="display:none">
-			<div style="border: 1px solid grey; width:200px; text-align: center;">
-				<label for="data_file">Click to (re)load CSV file</label>			
+			<div style="border: 1px solid grey; width:250px; text-align: center;">
+				<label for="data_file">Click to (re)load CSV file from disk</label>
 			</div>
+			<p style="text-align: right;">
+				<button onclick="downloadCSV()">Download data as CSV file</button>
+			</p>
 		</li>
 	</ul>
 </p>
@@ -75,11 +124,13 @@
 
 </div>
 
-<script src="https://code.jquery.com/jquery-3.3.1.slim.js" integrity="sha256-fNXJFIlca05BIO2Y5zh1xrShK3ME+/lYZ0j+ChxX2DA=" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.3.1.js" crossorigin="anonymous"></script>
 <script type="text/javascript" src="js/jquery.csv.js"></script>
+<script type="text/javascript" src="js/FileSaver.min.js"></script>
 
 <script type="text/javascript">
-pd_data = {}
+pd_data  = {}
+pd_fname = "picture_dictionary.csv"
 
 assets = {
 	"images": {},
@@ -100,14 +151,25 @@ audio_files.onchange = function(){
 };
 
 image_files.onchange = function(){
+	$("#img_grid").empty()
+
 	for (file of this.files) {
 		assets.images[file.name] = URL.createObjectURL(file); 
+
+		$("#img_grid").append(`
+			<div class="img_item" data-filename="${ file.name }" id="${ file.name.replace('\.', '_') }" >
+				${ file.name }<br />
+				<img data-filename="${ file.name }" src="${ assets.images[file.name] }" alt="${ file.name }" title="${ file.name }"></img>
+			</div>
+		`)
 	}
 };
 
 data_file.onchange = function() {
 
 	const reader = new FileReader();
+
+	pd_fname = this.files[0].name;
 
 	reader.readAsText(this.files[0]);
 
@@ -116,41 +178,108 @@ data_file.onchange = function() {
     	var csv = event.target.result;
     	var data = $.csv.toObjects(csv);
 
-    	console.log(data)
+    	// console.log(data)
 
-    	pd_data = data
+    	pd_data  = data
 
     	data_file.value = null
 
-    	for (row of data) {
-
-    		console.log(assets.images[row.illustration])
-
-    		$("#preview").append(`
-    			<div class="row">
-    				<div class="image">
-    					<img class="illustration" src="${ assets.images[row.illustration] }">
-    				</div>
-    				<div class="data">
-	    				<p>Illustration: ${row.illustration}</p>
-	    				<p>Word: ${row.word}</p>
-	    				<p>Word gloss: ${row.word_gloss}</p>
-	    				<p>Sentence: ${ row.sentence.replace(/\*(.+)\*/, '<b>$1</b>') }</p>
-	    				<p>Sentence gloss: ${ row.sentence_gloss }</p>
-	    				<p>
-	    					Word audio: ${ row.word_audio_file } (${ row.word_start_sec }-${ row.word_end_sec })
-	    					<a class="play" onclick="play_audio('${ row.word_audio_file }', ${ row.word_start_sec }, ${ row.word_end_sec })">►</a>
-    					</p>
-	    				<p>
-	    					Sentence audio: ${ row.sentence_audio_file } (${ row.sentence_start_sec }-${ row.sentence_end_sec })
-	    					<a class="play" onclick="play_audio('${ row.sentence_audio_file }', ${ row.sentence_start_sec }, ${ row.sentence_end_sec })">►</a>
-    					</p>
-    				</div>
-    			</div>
-			`)
-
-    	}
+    	data.forEach(function(row, index) {
+    	
+    	    		// console.log(assets.images[row.illustration])
+    	
+    	    		$("#preview").append(`
+    	    			<div class="row" id="pd_row_${index}">
+    	    				<div class="image">
+    	    					<img class="illustration" src="${ assets.images[row.illustration] }" data-rowindex="${index}" data-filename="${row.illustration}">
+    	    				</div>
+    	    				<div class="data">
+    		    				<p>Illustration: <a class="illus_change" data-rowindex="${index}" data-filename="${row.illustration}">${row.illustration}</a></p>
+    		    				<p>Word: <input spellcheck="false" class="editcell" type="text" value="${row.word}" data-rowindex="${index}" data-colname="word" style="width:400px"></input></p>
+    		    				<p>Word gloss: <input class="editcell" type="text" value="${row.word_gloss}" data-rowindex="${index}" data-colname="word_gloss" style="width:363px"></input></p>
+    		    				<p>Sentence: <input spellcheck="false" class="editcell" type="text" value="${row.sentence}" data-rowindex="${index}" data-colname="sentence" style="width:378px"></input></p>
+    		    				<p>Sentence gloss: <input class="editcell" type="text" value="${row.sentence_gloss}" data-rowindex="${index}" data-colname="sentence_gloss" style="width:341px"></input></p>
+    		    				<p>
+    		    					Word audio: ${ row.word_audio_file } (${ row.word_start_sec }-${ row.word_end_sec })
+    		    					<a class="play" onclick="play_audio('${ row.word_audio_file }', ${ row.word_start_sec }, ${ row.word_end_sec })">►</a>
+    	    					</p>
+    		    				<p>
+    		    					Sentence audio: ${ row.sentence_audio_file } (${ row.sentence_start_sec }-${ row.sentence_end_sec })
+    		    					<a class="play" onclick="play_audio('${ row.sentence_audio_file }', ${ row.sentence_start_sec }, ${ row.sentence_end_sec })">►</a>
+    	    					</p>
+    	    				</div>
+    	    			</div>
+    				`)
+    	
+    	    	})
   	};
+
+}
+
+$("#img_grid").on('dblclick', '.img_item', function() {
+
+	$("#img_grid div").removeClass('img_select')
+	$(this).addClass('img_select')
+
+	data_row      = $("#img_browser").data('rowindex')
+	target_div_id = "#pd_row_" + data_row
+	new_filename  = $(this).data('filename')
+
+	$(target_div_id + " img.illustration").attr('src', assets.images[new_filename])
+
+	$(target_div_id + " a.illus_change").data('filename', new_filename)
+	$(target_div_id + " a.illus_change").html(new_filename)
+
+	pd_data[data_row].illustration = new_filename
+
+	$("#img_browser").hide()
+
+});
+
+$('#preview').on('keyup', '.editcell', function(){
+    pd_data[$(this).data('rowindex')][$(this).data('colname')] = $(this).val()
+});
+
+$('#preview').on('click', '.illus_change', function(){
+
+	if(jQuery.isEmptyObject(assets.images)) {
+
+		alert("No images loaded!")
+
+	} else {
+
+		$("#img_browser").data('rowindex', $(this).data('rowindex'))
+	    $("#img_browser").show()
+
+	    img_id = $(this).data('filename').replace('\.', '_')
+
+	    if($('#' + img_id).length == 1) {
+
+	    	$("#img_grid div").removeClass('img_select')
+	    	$('#' + img_id).addClass('img_select')
+
+	    	document.getElementById("img_grid").scrollTop = document.getElementsByClassName("img_select")[0].offsetTop - 85
+
+	    } else {
+
+	    	$("#img_grid div").removeClass('img_select')
+
+	    }
+
+	}
+
+});
+
+function downloadCSV() {
+
+	if (pd_fname == null) {
+		alert("No CSV data loaded")
+	} else {
+		csvStr = $.csv.fromObjects(pd_data)
+
+    	var blob = new Blob([csvStr], {type: "text/csv;charset=utf-8"});
+    	saveAs(blob, pd_fname);
+	}
 
 }
 
