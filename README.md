@@ -2,7 +2,19 @@
 
 This repository contains a tool to quickly view picture dictionary texts and assets (images and audio) together based on a CSV file which contains the texts and links to the assets.
 
-![](docs/usage.gif)
+## View
+
+![](docs/usage-load.gif)
+
+## Update illustration
+
+You can also quickly update the links to the assets:
+
+![](docs/usage-update-img.gif)
+
+## Update audio
+
+![](docs/usage-update-audio.gif)
 
 # Usage
 
