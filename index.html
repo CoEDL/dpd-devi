@@ -39,7 +39,12 @@
 			text-decoration: none;
 		}
 
-		a.play:hover, a.illus_change:hover {
+		a.select {
+			color: orange;
+			text-decoration: none;
+		}
+
+		a.play:hover, a.select:hover, a.illus_change:hover {
 			cursor: pointer;
 		}
 
@@ -82,6 +87,23 @@
 			background: #007bff;
 		}
 
+		div#waveform-container {
+			background: white;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			position: fixed;
+			border-top: 1px solid black;
+			/*display: none;*/
+		}
+
+		div#waveform-menu {
+			/*border: 1px solid red;*/
+			text-align: left;
+			padding-left: 2px;
+			margin-top: 3px;
+			margin-bottom: 2px;
+		}
 	</style>
 
 </head>
@@ -124,11 +146,85 @@
 
 </div>
 
+<div id="waveform-container">
+	<div id="waveform-menu">
+		Audio file:
+		<select id="audio-select" disabled="true">
+			<option value="test">No audio loaded</option>
+		</select>
+		Selected region:
+		<input type="text" id="audio-start" readonly style="width: 50px;"> - 
+		<input type="text" id="audio-end" readonly style="width: 50px;">
+		<button id="region-updater" data-rowindex="null" data-audiofor="null" disabled="true">Update region</button>
+		<!-- <button style="background-color: #f44336;" onclick="$('#waveform-container').hide()">Cancel</button> //-->
+	</div>
+	<div id="waveform"></div>
+	<div id="waveform-timeline"></div>
+</div>
+
+<div style="height: 200px;">
+<!-- end of page filler for fixed waveform container //-->
+</div>
+
 <script src="https://code.jquery.com/jquery-3.3.1.js" crossorigin="anonymous"></script>
 <script type="text/javascript" src="js/jquery.csv.js"></script>
 <script type="text/javascript" src="js/FileSaver.min.js"></script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/1.2.3/wavesurfer.min.js"></script>
+
+<!-- wavesurfer.js regions -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/1.2.3/plugin/wavesurfer.regions.min.js"></script>
+
+<!-- wavesurfer.js timeline -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/1.2.3/plugin/wavesurfer.timeline.min.js"></script>
+
 <script type="text/javascript">
+var wavesurfer = WaveSurfer.create({
+    container: '#waveform',
+    scrollParent: true
+});
+
+wavesurfer.on('ready', function () {
+  // Enable creating regions by dragging
+  wavesurfer.enableDragSelection({});
+
+var timeline = Object.create(WaveSurfer.Timeline);
+
+timeline.init({
+    wavesurfer: wavesurfer,
+    container: '#waveform-timeline'
+  });
+
+})
+
+wavesurfer.on('region-click', function(region, e) {
+    e.stopPropagation();
+    // Play on click, loop on shift click
+    e.shiftKey ? region.playLoop() : region.play();
+
+    // console.log(region)
+});
+
+wavesurfer.on('region-updated', function(region){
+      var regions = region.wavesurfer.regions.list;
+      var keys = Object.keys(regions);
+
+      // Allow only 1 region to be selected at a time
+      if(keys.length > 1){
+        regions[keys[0]].remove();
+      }
+
+      if(regions[keys[0]] != undefined) {
+      	$("#audio-start").val(regions[keys[0]].start.toFixed(2))
+      	$("#audio-end").val(regions[keys[0]].end.toFixed(2))
+
+      	if($("#region-updater").attr('disabled') == 'disabled') {
+      		$("#region-updater").attr('disabled', false)
+      	}
+      }
+
+});
+
 pd_data  = {}
 pd_fname = "picture_dictionary.csv"
 
@@ -144,10 +240,29 @@ play_audio = function(audio_file, start_sec, end_sec) {
 
 }
 
+$("#audio-select").change(function() {
+
+	wavesurfer.clearRegions()
+	wavesurfer.load(assets.audio[$(this).val()])
+
+});
+
 audio_files.onchange = function(){
+
+	$("#audio-select").empty()
+	$("#audio-select").attr('disabled', false)
+
 	for (file of this.files) {
 		assets.audio[file.name] = URL.createObjectURL(file); 
+
+		$("#audio-select").append(`
+			<option>${file.name}</option>
+		`)
+
 	}
+	
+	wavesurfer.load(assets.audio[Object.keys(assets.audio)[0]])
+
 };
 
 image_files.onchange = function(){
@@ -200,12 +315,12 @@ data_file.onchange = function() {
     		    				<p>Sentence: <input spellcheck="false" class="editcell" type="text" value="${row.sentence}" data-rowindex="${index}" data-colname="sentence" style="width:378px"></input></p>
     		    				<p>Sentence gloss: <input class="editcell" type="text" value="${row.sentence_gloss}" data-rowindex="${index}" data-colname="sentence_gloss" style="width:341px"></input></p>
     		    				<p>
-    		    					Word audio: ${ row.word_audio_file } (${ row.word_start_sec }-${ row.word_end_sec })
-    		    					<a class="play" onclick="play_audio('${ row.word_audio_file }', ${ row.word_start_sec }, ${ row.word_end_sec })">►</a>
+    		    					Word audio: <span class="word_audio">${ row.word_audio_file } (${ row.word_start_sec }-${ row.word_end_sec })</span>
+    		    					<a class="select" data-rowindex="${index}" data-audiofor="word">✎</a>
     	    					</p>
     		    				<p>
-    		    					Sentence audio: ${ row.sentence_audio_file } (${ row.sentence_start_sec }-${ row.sentence_end_sec })
-    		    					<a class="play" onclick="play_audio('${ row.sentence_audio_file }', ${ row.sentence_start_sec }, ${ row.sentence_end_sec })">►</a>
+    		    					Sentence audio: <span class="sentence_audio">${ row.sentence_audio_file } (${ row.sentence_start_sec }-${ row.sentence_end_sec })</span>
+    		    					<a class="select" data-rowindex="${index}" data-audiofor="sentence">✎</a>
     	    					</p>
     	    				</div>
     	    			</div>
@@ -269,6 +384,83 @@ $('#preview').on('click', '.illus_change', function(){
 	}
 
 });
+
+$('#preview').on('click', 'a.select', function() {
+
+	if($("#audio-select").attr('disabled') == 'disabled') {
+
+		alert("No audio has been loaded!")
+
+	} else {
+
+		row_index = $(this).data('rowindex')
+		audio_for = $(this).data('audiofor')
+
+		$("#region-updater").data('rowindex', row_index)
+		$("#region-updater").data('audiofor', audio_for)
+
+		aud_start = pd_data[row_index][audio_for + "_start_sec"]
+		aud_end   = pd_data[row_index][audio_for + "_end_sec"]
+		aud_file  = pd_data[row_index][audio_for + "_audio_file"]
+
+		$("#audio-start").val(aud_start)
+      	$("#audio-end").val(aud_end)
+
+		wavesurfer.clearRegions()
+
+		if($("#audio-select").val() != aud_file) {
+
+			wavesurfer.load(assets.audio[aud_file])
+			delay_play_ms = 500
+
+		} else {
+
+			delay_play_ms = 50
+
+		}
+
+		// wait a bit for waveform to load
+		setTimeout(function () {
+			
+			region = wavesurfer.addRegion({start:[aud_start], end: [aud_end]})
+			wavesurfer.regions.list[region.id].play()
+
+		}, delay_play_ms);
+
+	}
+
+});
+
+$("#region-updater").on('click', function() {
+
+	data_row      = $(this).data('rowindex')
+	target_div_id = "#pd_row_" + data_row
+
+	new_filename  = $("#audio-select").val()
+	new_audstart  = parseFloat($("#audio-start").val())
+	new_audend    = parseFloat($("#audio-end").val())
+
+	if($(this).data('audiofor') == 'word') {
+
+		pd_data[data_row].word_audio_file = new_filename
+		pd_data[data_row].word_start_sec  = new_audstart
+		pd_data[data_row].word_end_sec    = new_audend
+
+		$(target_div_id + " span.word_audio").html(`${new_filename} (${new_audstart}-${new_audend})`)
+
+	} else {
+
+		pd_data[data_row].sentence_audio_file = new_filename
+		pd_data[data_row].sentence_start_sec  = new_audstart
+		pd_data[data_row].sentence_end_sec    = new_audend
+
+		$(target_div_id + " span.sentence_audio").html(`${new_filename} (${new_audstart}-${new_audend})`)
+
+	}
+
+	$("#region-updater").attr('disabled', 'disabled')
+
+})
 
 function downloadCSV() {
 
